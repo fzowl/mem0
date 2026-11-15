@@ -1,0 +1,80 @@
+---
+title: "Voyage AI by MongoDB as Embedding Provider"
+sidebarTitle: "Voyage AI by MongoDB"
+description: "Configure Voyage AI by MongoDB as an embedding provider in Mem0, including Matryoshka dimensions and the voyage-context contextualized models."
+---
+
+To use [Voyage AI by MongoDB](https://docs.voyageai.com/docs/embeddings) embedding models, install the official `voyageai` package (`pip install "mem0ai[extras]"` or `pip install "voyageai>=0.4.0"`) and set the `VOYAGE_API_KEY` environment variable. See the [API key and installation guide](https://docs.voyageai.com/docs/api-key-and-installation) for how to create a key.
+
+### Usage
+
+<Note> The `embedding_model_dims` parameter for `vector_store` must match the embedder's `embedding_dims`. The default is `1024` for every supported model. </Note>
+
+<CodeGroup>
+```python Python
+import os
+from mem0 import Memory
+
+os.environ["VOYAGE_API_KEY"] = "your_api_key"
+os.environ["OPENAI_API_KEY"] = "your_api_key" # For LLM
+
+config = {
+    "embedder": {
+        "provider": "voyageai",
+        "config": {
+            "model": "voyage-3.5",
+            "embedding_dims": 1024
+        }
+    },
+    "vector_store": {
+        "provider": "qdrant",
+        "config": {
+            "embedding_model_dims": 1024
+        }
+    }
+}
+
+m = Memory.from_config(config)
+messages = [
+    {"role": "user", "content": "I'm planning to watch a movie tonight. Any recommendations?"},
+    {"role": "assistant", "content": "How about thriller movies? They can be quite engaging."},
+    {"role": "user", "content": "I'm not a big fan of thriller movies but I love sci-fi movies."},
+    {"role": "assistant", "content": "Got it! I'll avoid thriller recommendations and suggest sci-fi movies in the future."}
+]
+m.add(messages, user_id="john")
+```
+</CodeGroup>
+
+### Supported models
+
+An unknown model name raises a `ValueError` when the embedder is created.
+
+| Model | Type | Dimensions | Context |
+| --- | --- | --- | --- |
+| `voyage-4-large`, `voyage-4`, `voyage-4-lite` | General | `1024` (default), `256`, `512`, `2048` | 32k tokens |
+| `voyage-code-4` | Code | `1024` (default), `256`, `512`, `2048` | 32k tokens |
+| `voyage-3-large`, `voyage-3.5`, `voyage-3.5-lite` | General | `1024` (default), `256`, `512`, `2048` | 32k tokens |
+| `voyage-code-3` | Code | `1024` (default), `256`, `512`, `2048` | 32k tokens |
+| `voyage-finance-2` | Finance | `1024` | 32k tokens |
+| `voyage-law-2` | Legal | `1024` | 16k tokens |
+| `voyage-context-4`, `voyage-context-3` | Contextualized | `1024` (default), `256`, `512`, `2048` | 32k tokens per chunk |
+
+`embedding_dims` is sent to Voyage as `output_dimension` only when you set it. A value the model does not accept (for example `256` with `voyage-law-2`) raises a `ValueError`.
+
+### Contextualized embeddings
+
+The `voyage-context-*` models use Voyage's [contextualized embeddings](https://docs.voyageai.com/docs/contextualized-chunk-embeddings) endpoint. Each text is embedded as its own document: documents are sent as a flat list of strings with `enable_auto_chunking=True` and `chunk_size=32000`, and search queries are sent as queries without auto-chunking. Mem0 stores one vector per text, so a text longer than 32,000 tokens (which Voyage would split into several chunks) raises a `ValueError`.
+
+### Token-aware batching
+
+`embed_batch` splits large lists into several requests so that each request stays within Voyage's limits: at most 1,000 inputs and the model's per-request token limit (1M tokens for the `-lite` models, 320K for `voyage-4` and `voyage-3.5`, 120K for the others and for `voyage-context-*`). Tokens are counted with the `voyageai` SDK tokenizer, and the embeddings come back in the order of the input texts. The first multi-text `embed_batch` call downloads the tokenizer for the model from Hugging Face (the SDK caches it), so that machine needs access to huggingface.co; single-text embeds do not use the tokenizer. Voyage documents no per-request token limit for `voyage-code-4`, so it is only split at 1,000 inputs.
+
+### Config
+
+Here are the parameters available for configuring the Voyage AI by MongoDB embedder:
+
+| Parameter | Description | Default Value |
+| --- | --- | --- |
+| `model` | The name of the embedding model to use | `voyage-3.5` |
+| `embedding_dims` | Dimensions of the embedding model | `1024` |
+| `api_key` | The Voyage AI by MongoDB API key | `VOYAGE_API_KEY` environment variable |
