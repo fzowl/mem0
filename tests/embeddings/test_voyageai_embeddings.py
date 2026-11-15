@@ -28,11 +28,11 @@ def _plain_response(texts):
 
 def _contextualized_response(n_documents, chunks_per_document=1):
     results = [SimpleNamespace(index=i, embeddings=[[float(i)]] * chunks_per_document) for i in range(n_documents)]
-    return Mock(results=list(reversed(results)))  # out of order on purpose
+    return Mock(results=results)
 
 
 def test_unknown_model_is_rejected(mock_client):
-    with pytest.raises(ValueError, match="Unsupported Voyage AI model 'voyage-nope-1'"):
+    with pytest.raises(ValueError, match="Unsupported Voyage AI by MongoDB model 'voyage-nope-1'"):
         VoyageEmbedding(BaseEmbedderConfig(model="voyage-nope-1"))
 
 
@@ -148,7 +148,7 @@ def test_contextualized_documents_use_flat_list_with_auto_chunking(mock_client):
         chunk_size=32_000,
         output_dimension=512,
     )
-    assert result == [[0.0], [1.0]]  # re-sorted by result index
+    assert result == [[0.0], [1.0]]
 
 
 def test_contextualized_queries_do_not_use_auto_chunking(mock_client):
@@ -166,7 +166,7 @@ def test_contextualized_queries_do_not_use_auto_chunking(mock_client):
 def test_contextualized_text_split_into_several_chunks_raises(mock_client):
     mock_client.contextualized_embed.return_value = _contextualized_response(1, chunks_per_document=2)
 
-    with pytest.raises(ValueError, match="split input 0 into 2 chunks"):
+    with pytest.raises(ValueError, match="split a text into 2 chunks"):
         VoyageEmbedding(BaseEmbedderConfig(model="voyage-context-4")).embed("very long text")
 
 

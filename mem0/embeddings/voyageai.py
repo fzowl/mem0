@@ -52,7 +52,9 @@ class VoyageEmbedding(EmbeddingBase):
             spec = VOYAGE_CONTEXTUALIZED_MODELS[self.config.model]
         else:
             supported = ", ".join(list(VOYAGE_MODELS) + list(VOYAGE_CONTEXTUALIZED_MODELS))
-            raise ValueError(f"Unsupported Voyage AI model '{self.config.model}'. Supported models: {supported}")
+            raise ValueError(
+                f"Unsupported Voyage AI by MongoDB model '{self.config.model}'. Supported models: {supported}"
+            )
 
         self._max_tokens = spec["max_tokens"]
         # `output_dimension` is only sent when `embedding_dims` is set explicitly.
@@ -124,10 +126,10 @@ class VoyageEmbedding(EmbeddingBase):
         response = self.client.contextualized_embed(**kwargs)
 
         embeddings = []
-        for result in sorted(response.results, key=lambda r: r.index):
+        for result in response.results:
             if len(result.embeddings) != 1:
                 raise ValueError(
-                    f"Voyage split input {result.index} into {len(result.embeddings)} chunks using model "
+                    f"Voyage AI by MongoDB split a text into {len(result.embeddings)} chunks using model "
                     f"'{self.config.model}'; Mem0 stores one vector per text, so shorten the text to at most "
                     f"{CONTEXTUALIZED_CHUNK_SIZE} tokens"
                 )
@@ -156,7 +158,7 @@ class VoyageEmbedding(EmbeddingBase):
             embeddings.extend(self._embed_request(batch, input_type))
         if len(embeddings) != len(texts):
             raise ValueError(
-                f"Voyage embed_batch() returned {len(embeddings)} embeddings for {len(texts)} texts"
+                f"Voyage AI by MongoDB embed_batch() returned {len(embeddings)} embeddings for {len(texts)} texts"
                 f" using model '{self.config.model}'"
             )
         return embeddings

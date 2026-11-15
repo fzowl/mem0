@@ -25,6 +25,12 @@ config = {
             "model": "voyage-3.5",
             "embedding_dims": 1024
         }
+    },
+    "vector_store": {
+        "provider": "qdrant",
+        "config": {
+            "embedding_model_dims": 1024
+        }
     }
 }
 
@@ -61,7 +67,7 @@ The `voyage-context-*` models use Voyage's [contextualized embeddings](https://d
 
 ### Token-aware batching
 
-`embed_batch` splits large lists into several requests so that each request stays within Voyage's limits: at most 1,000 inputs and the model's per-request token limit (1M tokens for the `-lite` models, 320K for `voyage-4` and `voyage-3.5`, 120K for the others and for `voyage-context-*`). Tokens are counted with the `voyageai` SDK tokenizer, and the embeddings come back in the order of the input texts. Voyage documents no per-request token limit for `voyage-code-4`, so it is only split at 1,000 inputs.
+`embed_batch` splits large lists into several requests so that each request stays within Voyage's limits: at most 1,000 inputs and the model's per-request token limit (1M tokens for the `-lite` models, 320K for `voyage-4` and `voyage-3.5`, 120K for the others and for `voyage-context-*`). Tokens are counted with the `voyageai` SDK tokenizer, and the embeddings come back in the order of the input texts. The first multi-text `embed_batch` call downloads the tokenizer for the model from Hugging Face (the SDK caches it), so that machine needs access to huggingface.co; single-text embeds do not use the tokenizer. Voyage documents no per-request token limit for `voyage-code-4`, so it is only split at 1,000 inputs.
 
 ### Config
 
